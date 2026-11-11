@@ -28,6 +28,11 @@ class ConnectionController extends Abstract\AbstractController
         exit;
     }
 
+    public function error404() : void
+    {
+        global $sessionRole, $sessionExpiresAt, $systemMessage;
+    }
+
     public function index() : void
     {
         global $systemMessage, $sessionRole, $sessionExpiresAt;

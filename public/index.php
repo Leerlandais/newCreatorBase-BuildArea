@@ -10,7 +10,13 @@ if (isset($_SESSION["activity"]) && time() - $_SESSION["activity"] > 1800) {
 
 $_SESSION["activity"] = time();
 
-if(isset($_SESSION["id"]) && $_SESSION["id"] !== session_id()) {
+if (
+    isset($_SESSION["project_name"]) &&
+    $_SESSION["project_name"] !== PROJECT_NAME
+    ||
+    isset($_SESSION["id"]) &&
+    $_SESSION["id"] !== session_id()
+) {
     session_unset();
     session_destroy();
     header("location: ./");
@@ -22,44 +28,53 @@ $sessionExpiresAt = $_SESSION["activity"] + 1810;
 if (isset($_SESSION["systemMessage"])) {
     $systemMessage = $_SESSION["systemMessage"];
     unset($_SESSION["systemMessage"]);
-}else {
+} else {
     $systemMessage = "";
 }
 $sessionRole = "";
-if(isset($_SESSION['roles'])) $sessionRole = $_SESSION['roles'];
+if (isset($_SESSION['roles'])) $sessionRole = $_SESSION['roles'];
+
 use Twig\Loader\FilesystemLoader;
 use Twig\Environment;
 use Factory\ConnectionFactory;
+use Controllers\RouteController;
+
 require_once "../config.php";
 spl_autoload_register(function ($class) {
-  $class = str_replace('\\', '/', $class);
-  require PROJECT_DIRECTORY.'/' .$class . '.php';
+    $class = str_replace('\\', '/', $class);
+    require PROJECT_DIRECTORY . '/' . $class . '.php';
 });
-require_once PROJECT_DIRECTORY.'/vendor/autoload.php';
-$loader = new FilesystemLoader(PROJECT_DIRECTORY.'/view/');
+require_once PROJECT_DIRECTORY . '/vendor/autoload.php';
+$loader = new FilesystemLoader(PROJECT_DIRECTORY . '/view/');
 // Dev version
-$twig = new Environment($loader, [
-  'debug' => true,
-]);
-$twig->addExtension(new \Twig\Extension\DebugExtension());
+if (ENV_MODE === "DEV") {
+    $twig = new Environment($loader, [
+        'debug' => true,
+    ]);
+    $twig->addExtension(new \Twig\Extension\DebugExtension());
+} else {
+// Prod version
+    $twig = new Environment($loader, [
+        'cache' => '../cache/Twig',
+        'debug' => false,
+    ]);
+// no DebugExtension online}
+}
 
 $twig->addGlobal('PUB_DIR', PUB_DIR);
 $twig->addGlobal('PROJ_DIR', PROJECT_DIRECTORY);
 $twig->addGlobal("ENV", ENV_MODE);
-// // Prod version
-// $twig = new Environment($loader, [
-//    'cache' => '../cache/Twig',
-//    'debug' => false,
-// ]);
-// // no DebugExtension online
+
 // var_dump($_SESSION);
-try {
-    $db = ConnectionFactory::createDb();
-} catch (PDOException $e) {
-    ConnectionFactory::insertNewDb();
+    try {
+        $db = ConnectionFactory::createDb();
+    } catch (PDOException $e) {
+        ConnectionFactory::insertNewDb();
 
-    $db = ConnectionFactory::createDb();
-}
+        $db = ConnectionFactory::createDb();
+    }
 
-require_once PROJECT_DIRECTORY . '/Controllers/RouteController.php';
-$db = null;
+
+    $routeController = new RouteController($twig, $db);
+    $routeController->handleRequest();
+    $db = null;
